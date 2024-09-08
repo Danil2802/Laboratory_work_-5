@@ -1,0 +1,195 @@
+import java.util.*;
+
+class WarehouseManagement {
+
+    // Константы для настройки склада
+    private static final int MAX_CELL_CAPACITY = 10; // Максимальная вместимость ячейки
+    private static final int ZONES = 2; // Количество зон хранения
+    private static final int RACKS_PER_ZONE = 4; // Количество стеллажей в зоне
+    private static final int VERTICAL_SECTIONS = 18; // Количество вертикальных секций стеллажа
+    private static final int SHELVES_PER_VERTICAL_SECTION = 5; // Количество полок в вертикальной секции
+    private static final int TOTAL_CAPACITY = ZONES * RACKS_PER_ZONE * VERTICAL_SECTIONS * SHELVES_PER_VERTICAL_SECTION * MAX_CELL_CAPACITY; // Общая вместимость склада
+
+    // Структура для хранения информации о товаре в ячейке
+    static class Cell {
+        String address;
+        String productName;
+        int quantity;
+
+        Cell(String address, String productName, int quantity) {
+            this.address = address;
+            this.productName = productName;
+            this.quantity = quantity;
+        }
+    }
+
+    // Функция для парсинга адреса ячейки
+    private static boolean parseCellAddress(String address, int[] parsed) {
+        if (address.length() != 5 || !Character.isLetter(address.charAt(0)) || !Character.isDigit(address.charAt(1)) || !Character.isDigit(address.charAt(2)) || !Character.isDigit(address.charAt(3)) || !Character.isDigit(address.charAt(4))) {
+            return false;
+        }
+        parsed[0] = Character.toUpperCase(address.charAt(0)) - 'A';
+        parsed[1] = address.charAt(1) - '0';
+        parsed[2] = (address.charAt(2) - '0') * 10 + (address.charAt(3) - '0');
+        parsed[3] = address.charAt(4) - '0';
+        if (parsed[0] > ZONES || parsed[1] > RACKS_PER_ZONE || parsed[1] < 1 || parsed[2] > VERTICAL_SECTIONS || parsed[2] < 1 || parsed[3] > SHELVES_PER_VERTICAL_SECTION || parsed[3] < 1) {
+            return false;
+        }
+        return true;
+    }
+
+    // Функция для добавления товара на склад
+    private static void addProduct(List<Cell> warehouse, String productName, int quantity, String address) {
+        int[] parsed = new int[4];
+        if (!parseCellAddress(address, parsed)) {
+            System.out.println("Нет такого адреса.");
+            return;
+        }
+
+        if (quantity > 10 || quantity < 1) {
+            System.out.println("Некорректное количество товаров или избыток товаров");
+            return;
+        }
+
+        for (Cell cell : warehouse) {
+            if (cell.address.equals(address)) {
+                if (cell.productName.equals(productName)) {
+                    if (cell.quantity + quantity > 10) {
+                        System.out.println("Нельзя добавить продукты, ячейка переполнится");
+                        return;
+                    } else {
+                        cell.quantity += quantity;
+                        System.out.println("Продукты успешно добавлены.");
+                        return;
+                    }
+                } else {
+                    System.out.println("Нужно добавлять только одинаковые продукты");
+                    return;
+                }
+            }
+        }
+        warehouse.add(new Cell(address, productName, quantity));
+        System.out.println("Продукты успешно добавлены");
+    }
+
+    // Функция для удаления товара со склада
+    private static void removeProduct(List<Cell> warehouse, String productName, int quantity, String address) {
+        int[] parsed = new int[4];
+        if (!parseCellAddress(address, parsed)) {
+            System.out.println("Нет такого адреса.");
+            return;
+        }
+
+        for (Iterator<Cell> iterator = warehouse.iterator(); iterator.hasNext(); ) {
+            Cell cell = iterator.next();
+            if (cell.address.equals(address)) {
+                if (cell.productName.equals(productName)) {
+                    if (cell.quantity >= quantity && quantity >= 1) {
+                        cell.quantity -= quantity;
+                        if (cell.quantity == 0) {
+                            iterator.remove();
+                        }
+                        System.out.println("Продукты успешно удалены");
+                        return;
+                    } else {
+                        System.out.println("Некорректное количество товаров или недостаток товаров для удаления");
+                        return;
+                    }
+                } else {
+                    System.out.println("В ячейке нет такого продукта");
+                    return;
+                }
+            }
+        }
+    }
+
+    // Функция для вывода информации о состоянии склада
+    private static void printWarehouseInfo(List<Cell> warehouse) {
+        int totalUsedCapacity = 0;
+        int[] zoneUsage = new int[ZONES];
+
+        for (Cell cell : warehouse) {
+            totalUsedCapacity += cell.quantity;
+            int zoneIndex = Character.toUpperCase(cell.address.charAt(0)) - 'A';
+            zoneUsage[zoneIndex] += cell.quantity;
+        }
+
+        double percentageUsed = (double) totalUsedCapacity / TOTAL_CAPACITY * 100.0;
+        System.out.printf("Склад заполнен на %.2f%%\n", percentageUsed);
+
+        for (int zone = 0; zone < ZONES; ++zone) {
+            double zonePercentageUsed = (double) zoneUsage[zone] / (RACKS_PER_ZONE * VERTICAL_SECTIONS * SHELVES_PER_VERTICAL_SECTION * MAX_CELL_CAPACITY) * 100.0;
+            System.out.printf("Зона %c заполнена на %.2f%%\n", (char) ('A' + zone), zonePercentageUsed);
+        }
+
+        System.out.println("Ячейки с продуктами:");
+        for (Cell cell : warehouse) {
+            System.out.printf("Ячейка %s: %s - %d\n", cell.address, cell.productName, cell.quantity);
+        }
+
+        System.out.println("Пустые ячейки:");
+        for (int zone = 0; zone < ZONES; ++zone) {
+            for (int rack = 1; rack <= RACKS_PER_ZONE; ++rack) {
+                for (int verticalSection = 1; verticalSection <= VERTICAL_SECTIONS; ++verticalSection) {
+                    for (int shelf = 1; shelf <= SHELVES_PER_VERTICAL_SECTION; ++shelf) {
+                        String cellAddress = String.format("%c%d%02d%d", (char) ('A' + zone), rack, verticalSection, shelf);
+                        boolean cellOccupied = false;
+                        for (Cell cell : warehouse) {
+                            if (cell.address.equals(cellAddress)) {
+                                cellOccupied = true;
+                                break;
+                            }
+                        }
+                        if (!cellOccupied) {
+                            System.out.println("Ячейка " + cellAddress);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        List<Cell> warehouse = new ArrayList<>();
+        String command;
+
+        for (; scanner.hasNextLine(); ) {
+            String line = scanner.nextLine();
+            String[] parts = line.split(" ");
+            if (parts.length < 1) {
+                System.out.println("Неверный формат команды.");
+                continue;
+            }
+            command = parts[0];
+            switch (command) {
+                case "ADD":
+                    if (parts.length != 4) {
+                        System.out.println("Неверный формат команды ADD.");
+                        break;
+                    }
+                    String productName = parts[1];
+                    int quantity = Integer.parseInt(parts[2]);
+                    String address = parts[3];
+                    addProduct(warehouse, productName, quantity, address);
+                    break;
+                case "REMOVE":
+                    if (parts.length != 4) {
+                        System.out.println("Неверный формат команды REMOVE.");
+                        break;
+                    }
+                    productName = parts[1];
+                    quantity = Integer.parseInt(parts[2]);
+                    address = parts[3];
+                    removeProduct(warehouse, productName, quantity, address);
+                    break;
+                case "INFO":
+                    printWarehouseInfo(warehouse);
+                    break;
+                default:
+                    System.out.println("Неизвестная команда, используйте ADD, REMOVE, или INFO.");
+                    break;
+            }
+        }
+    }
+}
