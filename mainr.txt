@@ -1,0 +1,129 @@
+import java.util.*;
+
+class Patient {
+    int duration;
+    String ticketNumber;
+
+    Patient(int duration, String ticketNumber) {
+        this.duration = duration;
+        this.ticketNumber = ticketNumber;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Locale.setDefault(new Locale("ru", "RU"));
+        Scanner scanner = new Scanner(System.in);
+        int count = 0;
+        String windowCount;
+
+        for (;;) {
+            System.out.println(">>> Введите кол-во окон:");
+            System.out.print("<<< ");
+            windowCount = scanner.nextLine();
+
+            count = 0;
+            for (int index = 0; index < windowCount.length(); index++) {
+                char c = windowCount.charAt(index);
+                if (Character.isDigit(c)) {
+                    count = count * 10 + (c - '0');
+                    if (count == 0) {
+                        System.out.println(">>> Не балуетесь");
+                        break;
+                    }
+                } else {
+                    System.out.println(">>> Не балуетесь");
+                    break;
+                }
+            }
+            if (count > 1 && windowCount.length() == windowCount.length()) {
+                break;
+            }
+        }
+
+        Queue<Patient> patientQueue = new LinkedList<>();
+        int[] windowTimes = new int[count]; // Время обслуживания каждого окна
+        int ticketNumber = 1; // Начальный номер талона
+
+        for (;;) {
+            System.out.print("<<< ");
+            String line = scanner.nextLine();
+            String[] parts = line.split(" ");
+
+            String command = parts[0];
+
+            if (command.equals("ENQUEUE")) {
+                if (parts.length != 2) {
+                    System.out.println(">>> Неверный формат команды ENQUEUE.");
+                    continue;
+                }
+
+                String durationStr = parts[1];
+                int durationCount = 0;
+                for (int index = 0; index < durationStr.length(); index++) {
+                    char c = durationStr.charAt(index);
+                    if (Character.isDigit(c)) {
+                        durationCount = durationCount * 10 + (c - '0');
+                        if (durationCount == 0) {
+                            System.out.println(">>> Не балуетесь");
+                            break;
+                        }
+                    } else {
+                        System.out.println(">>> Не балуетесь");
+                        break;
+                    }
+                }
+                if (durationCount > 0 && durationStr.length() == durationStr.length()) {
+                    // Генерируем номер талона
+                    String ticket = String.format("T%03d", ticketNumber++);
+
+                    // Добавляем посетителя в очередь
+                    patientQueue.add(new Patient(durationCount, ticket));
+                    System.out.println(">>> " + ticket);
+                }
+            } else if (command.equals("DISTRIBUTE")) {
+                // Очищаем текущие данные о времени обслуживания окон
+                Arrays.fill(windowTimes, 0);
+
+                // Распределяем посетителей по окнам
+                List<List<String>> windowQueues = new ArrayList<>();
+                for (int i = 0; i < count; i++) {
+                    windowQueues.add(new ArrayList<>());
+                }
+
+                for (; !patientQueue.isEmpty();) {
+                    // Находим окно с минимальным временем обслуживания
+                    int minTimeIndex = 0;
+                    for (int i = 1; i < count; ++i) {
+                        if (windowTimes[i] < windowTimes[minTimeIndex]) {
+                            minTimeIndex = i;
+                        }
+                    }
+
+                    // Добавляем посетителя в очередь окна
+                    Patient patient = patientQueue.poll();
+                    windowQueues.get(minTimeIndex).add(patient.ticketNumber);
+                    windowTimes[minTimeIndex] += patient.duration;
+                }
+
+                // Выводим распределение посетителей по окнам
+                for (int i = 0; i < count; ++i) {
+                    System.out.print(">>> Окно " + (i + 1) + " (" + windowTimes[i] + " минут): ");
+                    for (int j = 0; j < windowQueues.get(i).size(); ++j) {
+                        System.out.print(windowQueues.get(i).get(j));
+                        if (j < windowQueues.get(i).size() - 1) {
+                            System.out.print(", ");
+                        }
+                    }
+                    System.out.println();
+                }
+            } else if (command.equals("EXIT")) {
+                break;
+            } else {
+                System.out.println("Неизвестная команда.");
+            }
+        }
+
+        scanner.close();
+    }
+}
